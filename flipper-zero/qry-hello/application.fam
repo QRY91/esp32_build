@@ -1,0 +1,9 @@
+App(
+    appid="qry_hello",
+    name="QRY Hello",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="qry_hello_app",
+    cdefines=["APP_QRY_HELLO"],
+    requires=["gui"],
+    stack_size=2 * 1024,
+)

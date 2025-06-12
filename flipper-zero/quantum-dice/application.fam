@@ -1,0 +1,9 @@
+App(
+    appid="quantum_dice",
+    name="Quantum Dice",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="quantum_dice_app",
+    requires=["gui"],
+    stack_size=4 * 1024,
+    fap_category="Games",
+)
