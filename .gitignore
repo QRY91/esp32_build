@@ -339,3 +339,6 @@ coverage/
 # Environment files with secrets
 .env.local
 .env.*.local
+
+UROBORO*
+QUANTUM_DICE*
