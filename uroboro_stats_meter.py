@@ -2,7 +2,7 @@
 Uroboro Stats Meter for ESP32-S3 TFT Feather
 ==========================================
 
-A physical dashboard that fetches your real uroboro usage statistics 
+A physical dashboard that fetches your real uroboro usage statistics
 from PostHog and displays them on the TFT screen.
 
 Shows:
@@ -31,14 +31,19 @@ import json
 from adafruit_display_text import label
 import terminalio
 
-# Configuration
-WIFI_SSID = "telenet-0637807"
-WIFI_PASSWORD = "nfu3prubctJc"
-
-# PostHog Configuration
-POSTHOG_HOST = "https://eu.posthog.com"
-POSTHOG_PROJECT_ID = "71732"  # From your PostHog URL
-POSTHOG_PERSONAL_API_KEY = "NEED_PERSONAL_API_KEY"  # Different from project key
+# Import secrets from separate file
+try:
+    from secrets import (
+        WIFI_SSID,
+        WIFI_PASSWORD,
+        POSTHOG_HOST,
+        POSTHOG_PROJECT_ID,
+        POSTHOG_PERSONAL_API_KEY
+    )
+except ImportError:
+    print("❌ ERROR: secrets.py not found!")
+    print("📝 Copy secrets_template.py to secrets.py and configure your credentials")
+    raise
 
 # You'll need to create a Personal API Key from PostHog Account Settings
 # For now, we'll simulate the data to test the display
@@ -69,17 +74,17 @@ uroboro_stats = {
 def setup_display():
     """Initialize the TFT display"""
     global display, main_group
-    
+
     print("Setting up uroboro dashboard display...")
-    
+
     # Release any existing displays
     displayio.release_displays()
-    
+
     # Initialize backlight
     backlight = digitalio.DigitalInOut(board.TFT_BACKLIGHT)
     backlight.direction = digitalio.Direction.OUTPUT
     backlight.value = True
-    
+
     # Initialize display
     spi = board.SPI()
     display_bus = fourwire.FourWire(
@@ -88,7 +93,7 @@ def setup_display():
         chip_select=board.TFT_CS,
         reset=board.TFT_RESET
     )
-    
+
     display = adafruit_st7789.ST7789(
         display_bus,
         width=TFT_WIDTH,
@@ -97,30 +102,30 @@ def setup_display():
         rowstart=40,
         colstart=53
     )
-    
+
     # Create main display group
     main_group = displayio.Group()
     display.root_group = main_group
-    
+
     print("✅ Display ready!")
 
 def setup_wifi():
     """Connect to WiFi"""
     global wifi_connected, requests_session
-    
+
     print(f"Connecting to WiFi: {WIFI_SSID}")
-    
+
     try:
         wifi.radio.connect(WIFI_SSID, WIFI_PASSWORD)
         print(f"✅ WiFi connected: {wifi.radio.ipv4_address}")
-        
+
         # Create requests session
         pool = socketpool.SocketPool(wifi.radio)
         ssl_context = ssl.create_default_context()
         requests_session = adafruit_requests.Session(pool, ssl_context)
-        
+
         wifi_connected = True
-        
+
     except Exception as e:
         print(f"❌ WiFi connection failed: {e}")
         wifi_connected = False
@@ -128,34 +133,34 @@ def setup_wifi():
 def fetch_uroboro_stats():
     """Fetch uroboro statistics from PostHog"""
     global uroboro_stats, last_fetch_time
-    
+
     current_time = time.monotonic()
-    
+
     # Rate limiting - only fetch every 5 minutes
     if current_time - last_fetch_time < fetch_interval:
         return
-    
+
     if not wifi_connected or not requests_session:
         print("❌ Cannot fetch stats: WiFi not connected")
         return
-    
+
     print("📊 Fetching uroboro stats from PostHog...")
-    
+
     try:
         # Since we need a Personal API Key (which you need to create),
         # let's simulate the data for now based on real uroboro patterns
-        
+
         # This is what the actual query would look like:
         """
         query_payload = {
             "query": {
                 "kind": "HogQLQuery",
                 "query": '''
-                    SELECT 
+                    SELECT
                         event,
                         COUNT() as count
-                    FROM events 
-                    WHERE 
+                    FROM events
+                    WHERE
                         event IN ('uroboro_capture', 'uroboro_publish', 'uroboro_status')
                         AND timestamp >= now() - interval 24 hour
                     GROUP BY event
@@ -163,11 +168,11 @@ def fetch_uroboro_stats():
             }
         }
         """
-        
+
         # Simulate realistic uroboro usage for demo
         import random
         base_time = time.monotonic()
-        
+
         # Simulate daily activity based on time of day
         hour = int((base_time / 3600) % 24)
         if 9 <= hour <= 17:  # Work hours
@@ -178,13 +183,13 @@ def fetch_uroboro_stats():
             captures_base = 3
             publishes_base = 1
             status_base = 5
-        
+
         # Add some randomness
         uroboro_stats["captures_today"] = captures_base + random.randint(-5, 10)
         uroboro_stats["publishes_today"] = publishes_base + random.randint(-2, 5)
         uroboro_stats["status_checks_today"] = status_base + random.randint(-5, 15)
         uroboro_stats["captures_hour"] = random.randint(0, 5)
-        
+
         # Activity indicators
         total_activity = uroboro_stats["captures_today"] + uroboro_stats["publishes_today"]
         if total_activity > 20:
@@ -193,17 +198,17 @@ def fetch_uroboro_stats():
             uroboro_stats["daily_trend"] = "→ Normal"
         else:
             uroboro_stats["daily_trend"] = "↘ Low"
-        
+
         # Last activity time
         minutes_ago = random.randint(1, 120)
         uroboro_stats["last_activity"] = f"{minutes_ago}m ago"
-        
+
         # Update fetch time
         uroboro_stats["last_fetch"] = format_time(current_time)
         last_fetch_time = current_time
-        
+
         print(f"✅ Stats updated: {uroboro_stats['captures_today']} captures today")
-        
+
         # Here's where you'd actually make the PostHog API call:
         """
         response = requests_session.post(
@@ -215,12 +220,12 @@ def fetch_uroboro_stats():
             },
             timeout=10
         )
-        
+
         if response.status_code == 200:
             data = response.json()
             parse_posthog_response(data)
         """
-        
+
     except Exception as e:
         print(f"❌ Error fetching stats: {e}")
 
@@ -228,26 +233,26 @@ def parse_posthog_response(data):
     """Parse PostHog API response and update stats"""
     try:
         results = data.get("results", [])
-        
+
         # Reset counts
         uroboro_stats["captures_today"] = 0
         uroboro_stats["publishes_today"] = 0
         uroboro_stats["status_checks_today"] = 0
-        
+
         # Parse event counts
         for row in results:
             event_name = row[0]
             count = row[1]
-            
+
             if event_name == "uroboro_capture":
                 uroboro_stats["captures_today"] = count
             elif event_name == "uroboro_publish":
                 uroboro_stats["publishes_today"] = count
             elif event_name == "uroboro_status":
                 uroboro_stats["status_checks_today"] = count
-        
+
         print(f"✅ Parsed PostHog data: {len(results)} event types")
-        
+
     except Exception as e:
         print(f"❌ Error parsing PostHog response: {e}")
 
@@ -262,7 +267,7 @@ def create_dashboard():
     # Clear existing elements
     while len(main_group) > 0:
         main_group.pop()
-    
+
     # Header
     title = label.Label(
         terminalio.FONT,
@@ -272,7 +277,7 @@ def create_dashboard():
         y=10
     )
     main_group.append(title)
-    
+
     # Connection status
     status_color = 0x00FF00 if wifi_connected else 0xFF0000
     status_text = "ONLINE" if wifi_connected else "OFFLINE"
@@ -284,7 +289,7 @@ def create_dashboard():
         y=10
     )
     main_group.append(status)
-    
+
     # Today's activity
     activity_label = label.Label(
         terminalio.FONT,
@@ -294,7 +299,7 @@ def create_dashboard():
         y=30
     )
     main_group.append(activity_label)
-    
+
     # Captures
     captures = label.Label(
         terminalio.FONT,
@@ -304,7 +309,7 @@ def create_dashboard():
         y=45
     )
     main_group.append(captures)
-    
+
     # Publishes
     publishes = label.Label(
         terminalio.FONT,
@@ -314,7 +319,7 @@ def create_dashboard():
         y=60
     )
     main_group.append(publishes)
-    
+
     # Status checks
     status_checks = label.Label(
         terminalio.FONT,
@@ -324,7 +329,7 @@ def create_dashboard():
         y=75
     )
     main_group.append(status_checks)
-    
+
     # Current hour activity
     hour_activity = label.Label(
         terminalio.FONT,
@@ -334,7 +339,7 @@ def create_dashboard():
         y=95
     )
     main_group.append(hour_activity)
-    
+
     # Trend and last activity
     trend = label.Label(
         terminalio.FONT,
@@ -344,7 +349,7 @@ def create_dashboard():
         y=110
     )
     main_group.append(trend)
-    
+
     # Last update
     last_update = label.Label(
         terminalio.FONT,
@@ -359,41 +364,41 @@ def main():
     """Main application loop"""
     print("🔄 Starting Uroboro Stats Meter")
     print("=" * 35)
-    
+
     # Initialize hardware
     setup_display()
     setup_wifi()
-    
+
     # Initial stats fetch
     fetch_uroboro_stats()
-    
+
     # Main loop
     loop_count = 0
-    
+
     while True:
         try:
             # Fetch new data periodically
             fetch_uroboro_stats()
-            
+
             # Update display
             create_dashboard()
-            
+
             # Garbage collection
             if loop_count % 60 == 0:  # Every minute
                 gc.collect()
-                
+
                 # Show memory status
                 free_mem = gc.mem_free()
                 temp = microcontroller.cpu.temperature
                 print(f"💾 Memory: {free_mem} bytes, 🌡️  CPU: {temp:.1f}°C")
-            
+
             loop_count += 1
             time.sleep(1)  # Update every second
-            
+
         except KeyboardInterrupt:
             print("\n🔄 Uroboro dashboard stopped")
             break
-            
+
         except Exception as e:
             print(f"❌ Error in main loop: {e}")
             time.sleep(5)  # Wait before retrying

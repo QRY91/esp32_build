@@ -223,6 +223,7 @@ core.*
 # Private configuration files
 config.h.local
 secrets.h
+secrets.py
 private_config.h
 *.key
 *.pem
@@ -346,3 +347,5 @@ REPO*
 
 adafruit*
 feather*
+
+secrets.py
